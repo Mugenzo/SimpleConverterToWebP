@@ -1,0 +1,1 @@
+folder for images that has png format
