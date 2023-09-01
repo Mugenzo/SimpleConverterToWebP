@@ -7,7 +7,7 @@ interface ConvertableFile
 
 class PngConverter implements ConvertableFile
 {
-    public function convert(string $file, string $fileName, string $destinationDir = __DIR__ . "/processed-png/"): void
+    public function convert(string $file, string $fileName, string $destinationDir = __DIR__ . "/processed-png/", int $quality = 85): void
     {
         $webpFile = $destinationDir . $fileName . '.webp';
 
@@ -31,7 +31,7 @@ class PngConverter implements ConvertableFile
         imagecopyresampled($trueColorImage, $image, 0, 0, 0, 0, $width, $height, $width, $height);
 
         // Convert and save as WebP
-        imagewebp($trueColorImage, $webpFile, 85); // 85 is the quality value (0 to 100)
+        imagewebp($trueColorImage, $webpFile, $quality); // 85 is the quality value (0 to 100)
 
         // Free up memory
         imagedestroy($image);
@@ -41,13 +41,13 @@ class PngConverter implements ConvertableFile
 
 class JpegConverter implements ConvertableFile
 {
-    public function convert(string $file, string $fileName, string $destinationDir = __DIR__ . "/processed-jpeg/"): void
+    public function convert(string $file, string $fileName, string $destinationDir = __DIR__ . "/processed-jpeg/", int $quality = 85): void
     {
         $outputPath = $destinationDir . $fileName . ".webp";
         $jpegImage = imagecreatefromjpeg($file);
 
         // Convert and save as WebP
-        imagewebp($jpegImage, $outputPath);
+        imagewebp($jpegImage, $outputPath, $quality);
 
         // Free up memory
         imagedestroy($jpegImage);
@@ -58,6 +58,7 @@ class Converter
 {
     const MIME_TYPES = [
         'image/jpeg',
+        'image/jpg',
         'image/png'
     ];
 
@@ -69,23 +70,29 @@ class Converter
 
     private JpegConverter|PngConverter|null $fileConverter;
 
+    private int $quality = 85;
+
     /**
      * @throws Exception
      */
-    public function processFile(string $file): string
+    public function processFile(string $file, int $quality = 85): string
     {
         $this->file = $file;
 
         $this
-            ->checkFileProcessable()
             ->loadFileName()
+            ->checkFileProcessable()
             ->selectFileConverter();
 
         if ($this->fileConverter === null) {
             throw new Exception("File $this->fileName with mime/type $this->mime_type is not supported by convertors");
         }
 
-        $this->fileConverter->convert($this->file, $this->fileName);
+        $this->fileConverter->convert(
+            file: $this->file,
+            fileName: $this->fileName,
+            quality: $quality
+        );
 
         return $this->fileName;
     }
@@ -123,16 +130,19 @@ class Converter
         };
     }
 }
+
 // Source directory containing images
 $sourceDir = __DIR__ . "/images/";
 // Get an array of PNG files from the source directory
 $rawFiles = glob($sourceDir . '*');
 
 $converter = new Converter();
+list($key, $val) = explode('=', $argv[1]);
+$quality = ($key === '--qlt') ? $val : 85;
 print_r("/************* FILE CONVERTER *************/\n");
 foreach ($rawFiles as $rawFile) {
     try {
-        $fileName = $converter->processFile($rawFile);
+        $fileName = $converter->processFile($rawFile, $quality);
         print_r("File $fileName processed\n");
     } catch (Exception $e) {
         print_r($e->getMessage() . "\n");
