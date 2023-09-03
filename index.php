@@ -54,12 +54,28 @@ class JpegConverter implements ConvertableFile
     }
 }
 
+class Mp4Converter implements ConvertableFile
+{
+    public function convert(string $file, string $fileName, string $destinationDir = __DIR__ . "/processed-video/", int $quality = 85): void
+    {   
+        /**
+         * codec libvpx-vp9|libx265
+         * libvpx-vp9 - output file has REALLY large size, like x2 of original
+         */
+        $codec = 'libx265';   
+        $outputPath = "{$destinationDir}{$fileName}-$codec.mp4";
+        
+        shell_exec("ffmpeg -i $file -c:v $codec -crf 28 -c:a aac -strict experimental $outputPath");
+    }
+}
+
 class Converter
 {
     const MIME_TYPES = [
         'image/jpeg',
         'image/jpg',
-        'image/png'
+        'image/png',
+        'video/mp4'
     ];
 
     private string $file;
@@ -68,7 +84,7 @@ class Converter
 
     private string $mime_type;
 
-    private JpegConverter|PngConverter|null $fileConverter;
+    private JpegConverter|PngConverter|Mp4Converter|null $fileConverter;
 
     private int $quality = 85;
 
@@ -126,6 +142,7 @@ class Converter
         $this->fileConverter = match ($this->mime_type) {
             'image/jpeg', 'image/jpg' => new JpegConverter(),
             'image/png' => new PngConverter(),
+            'video/mp4' => new Mp4Converter(),
             default => null
         };
     }
